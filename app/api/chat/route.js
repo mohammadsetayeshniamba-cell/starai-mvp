@@ -27,7 +27,7 @@ export async function POST(req) {
           content: [
             {
               type: "text",
-              text: m.content || "این تصویر را تحلیل کن.",
+              text: m.content || " این تصویر را تحلیل کن. لطفا!",
             },
             {
               type: "image_url",
