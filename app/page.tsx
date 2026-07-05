@@ -10,6 +10,7 @@ type ChatMessage = {
   role: Role;
   content: string;
   imagePreview?: string;
+  model?: string;
   createdAt?: string;
 };
 
@@ -19,7 +20,47 @@ type Conversation = {
   created_at?: string;
   updated_at?: string;
 };
+const AI_MODELS = [
+  {
+    id: "openrouter/free",
+    name: "Auto Free",
+    description: "انتخاب خودکار مدل رایگان",
+  },
+  {
+    id: "openai/gpt-oss-120b:free",
+    name: "GPT OSS 120B",
+    description: "قوی‌تر، مناسب تحلیل و استدلال",
+  },
+  {
+    id: "openai/gpt-oss-20b:free",
+    name: "GPT OSS 20B",
+    description: "سریع‌تر و سبک‌تر",
+  },
+  {
+    id: "nvidia/nemotron-3-super-120b-a12b:free",
+    name: "Nemotron 3 Super",
+    description: "مناسب تحلیل‌های طولانی",
+  },
+  {
+    id: "google/gemma-4-31b-it:free",
+    name: "Gemma 4 31B",
+    description: "مناسب متن و عکس",
+  },
+  {
+    id: "cohere/north-mini-code:free",
+    name: "Cohere North Code",
+    description: "مناسب کدنویسی",
+  },
+];
+function getModelLabel(modelId?: string) {
+  if (!modelId) return "";
 
+  const found = AI_MODELS.find((model) => model.id === modelId);
+
+  if (found) return found.name;
+
+  return modelId.replace(":free", "");
+}
 function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -45,7 +86,7 @@ export default function Home() {
 
   const [input, setInput] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState("");
-  const [selectedModel, setSelectedModel] = useState("openrouter/free");
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -137,6 +178,7 @@ export default function Home() {
           role: m.role,
           content: m.content,
           imagePreview: m.image_preview || undefined,
+          model: m.model || undefined,
           createdAt: m.created_at,
         })
       );
@@ -315,8 +357,13 @@ export default function Home() {
         id: createId(),
         role: "assistant",
         content: data.reply,
+        model: data.usedModel || selectedModel,
         createdAt: new Date().toISOString(),
       };
+      
+      if (data.fallbackFrom) {
+        setError("مدل انتخاب‌شده شلوغ بود؛ پاسخ با یک مدل رایگان جایگزین تولید شد.");
+      }
 
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -456,13 +503,25 @@ export default function Home() {
             <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها در حساب کاربری شما</p>
           </div>
 
-          <select
-            className="model-select"
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-          >
-            <option value="openrouter/free">OpenRouter Free</option>
-          </select>
+          <div className="model-picker">
+  <label>مدل پاسخ‌دهنده</label>
+
+  <select
+    className="model-select"
+    value={selectedModel}
+    onChange={(e) => setSelectedModel(e.target.value)}
+  >
+    {AI_MODELS.map((model) => (
+      <option key={model.id} value={model.id}>
+        {model.name}
+      </option>
+    ))}
+  </select>
+
+  <span>
+    {AI_MODELS.find((model) => model.id === selectedModel)?.description}
+  </span>
+</div>
         </header>
 
         <div className="chat-body">
@@ -523,6 +582,11 @@ export default function Home() {
                 )}
 
                 <div className="message-content">{message.content}</div>
+                {message.role === "assistant" && message.model && (
+                <div className="message-model">
+                  پاسخ با: {getModelLabel(message.model)}
+                </div>
+              )}
               </div>
             </div>
           ))}

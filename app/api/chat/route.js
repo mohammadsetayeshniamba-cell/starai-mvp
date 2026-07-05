@@ -1,6 +1,54 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
+const ALLOWED_FREE_MODELS = new Set([
+    "openrouter/free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "google/gemma-4-31b-it:free",
+    "cohere/north-mini-code:free",
+  ]);
+  
+  function getFallbackModels(selectedModel) {
+    const fallbackOrder = [
+      selectedModel,
+      "openrouter/free",
+      "openai/gpt-oss-20b:free",
+      "google/gemma-4-31b-it:free",
+    ];
+  
+    return [...new Set(fallbackOrder)].filter((model) =>
+      ALLOWED_FREE_MODELS.has(model)
+    );
+  }
+  
+  async function callOpenRouter({ model, messages }) {
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer":
+            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+          "X-OpenRouter-Title": "StarAI MVP",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+        }),
+      }
+    );
+  
+    const data = await response.json();
+  
+    return {
+      response,
+      data,
+    };
+  }
 export async function POST(req) {
   try {
     const { user, error: authError } = await getUserFromRequest(req);
@@ -18,7 +66,9 @@ export async function POST(req) {
       image,
       model = "openrouter/free",
     } = await req.json();
-
+    const selectedModel = ALLOWED_FREE_MODELS.has(model)
+    ? model
+    : "openrouter/free";
     if (!process.env.OPENROUTER_API_KEY) {
       return NextResponse.json(
         { error: "OPENROUTER_API_KEY is missing" },
@@ -139,49 +189,73 @@ export async function POST(req) {
       };
     });
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer":
-            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-          "X-OpenRouter-Title": "StarAI MVP",
-        },
-        body: JSON.stringify({
-          model,
-          messages: openRouterMessages,
-        }),
+    const fallbackModels = getFallbackModels(selectedModel);
+
+    let finalResponse = null;
+    let finalData = null;
+    let workingModel = null;
+    let lastErrorData = null;
+    let lastStatus = null;
+    
+    for (const candidateModel of fallbackModels) {
+      console.log("Trying OpenRouter model:", candidateModel);
+    
+      const { response, data } = await callOpenRouter({
+        model: candidateModel,
+        messages: openRouterMessages,
+      });
+    
+      if (response.ok) {
+        finalResponse = response;
+        finalData = data;
+        workingModel = candidateModel;
+        break;
       }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
+    
+      lastErrorData = data;
+      lastStatus = response.status;
+    
+      console.error("OpenRouter failed model:", candidateModel);
       console.error("OpenRouter status:", response.status);
       console.error("OpenRouter response:", data);
-
+    
+      const shouldRetry =
+        response.status === 429 ||
+        response.status === 500 ||
+        response.status === 502 ||
+        response.status === 503 ||
+        response.status === 504;
+    
+      if (!shouldRetry) {
+        break;
+      }
+    }
+    
+    if (!finalResponse || !finalData || !workingModel) {
       return NextResponse.json(
         {
           error: "OpenRouter API failed",
-          status: response.status,
-          details: data,
+          status: lastStatus,
+          details: lastErrorData,
         },
-        { status: response.status }
+        { status: lastStatus || 500 }
       );
     }
+    
+    const data = finalData;
+    const fallbackFrom =
+      workingModel !== selectedModel ? selectedModel : null;
 
     const reply = data.choices?.[0]?.message?.content || "پاسخی دریافت نشد.";
-
-    const { error: assistantMessageError } = await supabase
-      .from("messages")
-      .insert({
-        conversation_id: activeConversationId,
-        role: "assistant",
-        content: reply,
-      });
+    const usedModel = data.model || workingModel;
+        const { error: assistantMessageError } = await supabase
+    .from("messages")
+    .insert({
+      conversation_id: activeConversationId,
+      role: "assistant",
+      content: reply,
+      model: usedModel,
+    });
 
     if (assistantMessageError) {
       console.error("Insert assistant message error:", assistantMessageError);
@@ -199,11 +273,12 @@ export async function POST(req) {
       .eq("id", activeConversationId)
       .eq("user_id", user.id);
 
-    return NextResponse.json({
-      reply,
-      conversationId: activeConversationId,
-      usedModel: data.model || model,
-    });
+      return NextResponse.json({
+        reply,
+        conversationId: activeConversationId,
+        usedModel,
+        fallbackFrom,
+      });
   } catch (error) {
     console.error("Server error:", error);
 

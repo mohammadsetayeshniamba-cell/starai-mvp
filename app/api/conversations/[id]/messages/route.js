@@ -39,7 +39,7 @@ export async function GET(req, context) {
 
     const { data, error } = await supabase
       .from("messages")
-      .select("id, role, content, image_preview, created_at")
+      .select("id, role, content, image_preview, model, created_at")
       .eq("conversation_id", id)
       .order("created_at", { ascending: true });
 
