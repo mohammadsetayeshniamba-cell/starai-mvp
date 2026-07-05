@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabaseClient";
 
 type Role = "user" | "assistant";
 
@@ -19,8 +20,6 @@ type Conversation = {
   updated_at?: string;
 };
 
-const CLIENT_ID_KEY = "starai_client_id_v1";
-
 function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -30,10 +29,20 @@ function createId() {
 }
 
 export default function Home() {
-  const [clientId, setClientId] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
+
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
   const [input, setInput] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState("openrouter/free");
@@ -43,71 +52,174 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let savedClientId = localStorage.getItem(CLIENT_ID_KEY);
+    supabaseBrowser.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user || null);
+      setAuthReady(true);
+    });
 
-    if (!savedClientId) {
-      savedClientId = createId();
-      localStorage.setItem(CLIENT_ID_KEY, savedClientId);
-    }
+    const {
+      data: { subscription },
+    } = supabaseBrowser.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      setAuthReady(true);
 
-    setClientId(savedClientId);
+      if (!newSession) {
+        setConversations([]);
+        setMessages([]);
+        setActiveConversationId("");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const refreshConversations = useCallback(async (id: string) => {
-    if (!id) return;
+  const refreshConversations = useCallback(
+    async (accessToken?: string) => {
+      const token = accessToken || session?.access_token;
 
-    const response = await fetch(
-      `/api/conversations?clientId=${encodeURIComponent(id)}`
-    );
+      if (!token) return [];
 
-    const data = await response.json();
+      const response = await fetch("/api/conversations", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    if (!response.ok) {
-      console.error("Load conversations error:", data);
-      return;
-    }
+      const data = await response.json();
 
-    setConversations(data.conversations || []);
-  }, []);
+      if (!response.ok) {
+        console.error("Load conversations error:", data);
+        setError("خطا در دریافت تاریخچه چت‌ها.");
+        return [];
+      }
 
-  const loadMessages = useCallback(async (conversationId: string) => {
-    if (!conversationId) {
-      setMessages([]);
-      return;
-    }
+      const list = data.conversations || [];
+      setConversations(list);
 
-    const response = await fetch(
-      `/api/conversations/${conversationId}/messages`
-    );
+      return list;
+    },
+    [session?.access_token]
+  );
 
-    const data = await response.json();
+  const loadMessages = useCallback(
+    async (conversationId: string, accessToken?: string) => {
+      const token = accessToken || session?.access_token;
 
-    if (!response.ok) {
-      console.error("Load messages error:", data);
-      setError("خطا در دریافت پیام‌های ذخیره‌شده.");
-      return;
-    }
+      if (!token || !conversationId) {
+        setMessages([]);
+        return;
+      }
 
-    const mappedMessages: ChatMessage[] = (data.messages || []).map((m: any) => ({
-      id: m.id,
-      role: m.role,
-      content: m.content,
-      imagePreview: m.image_preview || undefined,
-      createdAt: m.created_at,
-    }));
+      const response = await fetch(
+        `/api/conversations/${conversationId}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-    setMessages(mappedMessages);
-  }, []);
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Load messages error:", data);
+        setError("خطا در دریافت پیام‌های ذخیره‌شده.");
+        return;
+      }
+
+      const mappedMessages: ChatMessage[] = (data.messages || []).map(
+        (m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          imagePreview: m.image_preview || undefined,
+          createdAt: m.created_at,
+        })
+      );
+
+      setMessages(mappedMessages);
+    },
+    [session?.access_token]
+  );
 
   useEffect(() => {
-    if (clientId) {
-      refreshConversations(clientId);
-    }
-  }, [clientId, refreshConversations]);
+    const token = session?.access_token;
+
+    if (!token) return;
+
+    const initConversations = async () => {
+      const list = await refreshConversations(token);
+
+      if (list.length > 0) {
+        setActiveConversationId(list[0].id);
+        await loadMessages(list[0].id, token);
+      } else {
+        setActiveConversationId("");
+        setMessages([]);
+      }
+    };
+
+    initConversations();
+  }, [session?.access_token, refreshConversations, loadMessages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, loading]);
+
+  const handleLogin = async () => {
+    setAuthMessage("");
+    setAuthLoading(true);
+
+    try {
+      const { error } = await supabaseBrowser.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+
+      setAuthMessage("");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    setAuthMessage("");
+    setAuthLoading(true);
+
+    try {
+      const { data, error } = await supabaseBrowser.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+
+      if (!data.session) {
+        setAuthMessage("ثبت‌نام انجام شد. ایمیل تایید را بررسی کنید.");
+        return;
+      }
+
+      setAuthMessage("");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabaseBrowser.auth.signOut();
+  };
 
   const handleNewChat = () => {
     setActiveConversationId("");
@@ -150,8 +262,8 @@ export default function Home() {
 
     if (!text && !imageDataUrl) return;
 
-    if (!clientId) {
-      setError("clientId هنوز آماده نشده. صفحه را یک بار refresh کن.");
+    if (!session?.access_token) {
+      setError("برای ارسال پیام باید وارد حساب کاربری شوید.");
       return;
     }
 
@@ -178,9 +290,9 @@ export default function Home() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          clientId,
           conversationId: activeConversationId || null,
           message: userContent,
           image: selectedImage || "",
@@ -208,7 +320,7 @@ export default function Home() {
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      await refreshConversations(clientId);
+      await refreshConversations(session.access_token);
     } catch (err) {
       console.error(err);
 
@@ -227,19 +339,89 @@ export default function Home() {
     }
   };
 
+  if (!authReady) {
+    return (
+      <main className="auth-shell">
+        <div className="auth-card">در حال بارگذاری...</div>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="auth-shell">
+        <div className="auth-card">
+          <div className="auth-logo">★</div>
+
+          <h1>StarAI</h1>
+
+          <p>برای ذخیره و مشاهده چت‌های خود وارد شوید.</p>
+
+          <input
+            type="email"
+            placeholder="ایمیل"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="رمز عبور"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          {authMessage && <div className="auth-message">{authMessage}</div>}
+
+          {authMode === "login" ? (
+            <button onClick={handleLogin} disabled={authLoading}>
+              {authLoading ? "در حال ورود..." : "ورود"}
+            </button>
+          ) : (
+            <button onClick={handleSignup} disabled={authLoading}>
+              {authLoading ? "در حال ثبت‌نام..." : "ثبت‌نام"}
+            </button>
+          )}
+
+          <button
+            className="auth-switch"
+            onClick={() =>
+              setAuthMode(authMode === "login" ? "signup" : "login")
+            }
+          >
+            {authMode === "login"
+              ? "حساب ندارید؟ ثبت‌نام کنید"
+              : "حساب دارید؟ وارد شوید"}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="logo">★</div>
+
           <div>
             <div className="brand-title">StarAI</div>
             <div className="brand-subtitle">AI Chat Platform</div>
           </div>
         </div>
 
+        <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>
+          وارد شده با:
+          <br />
+          <b>{user.email}</b>
+        </div>
+
         <button className="new-chat-btn" onClick={handleNewChat}>
           + چت جدید
+        </button>
+
+        <button className="logout-btn" onClick={handleLogout}>
+          خروج
         </button>
 
         <div className="sidebar-section-title">تاریخچه چت‌ها</div>
@@ -271,7 +453,7 @@ export default function Home() {
         <header className="chat-header">
           <div>
             <h1>چت هوش مصنوعی</h1>
-            <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها در دیتابیس</p>
+            <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها در حساب کاربری شما</p>
           </div>
 
           <select
@@ -287,19 +469,31 @@ export default function Home() {
           {messages.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">🤖</div>
+
               <h2>از StarAI بپرسید</h2>
+
               <p>
-                یک پیام بنویسید یا یک عکس ارسال کنید. چت‌ها در Supabase ذخیره می‌شوند.
+                یک پیام بنویسید یا یک عکس ارسال کنید. چت‌ها در حساب شما ذخیره می‌شوند.
               </p>
 
               <div className="quick-cards">
-                <button onClick={() => setInput("برای من یک متن تبلیغاتی کوتاه بنویس")}>
+                <button
+                  onClick={() =>
+                    setInput("برای من یک متن تبلیغاتی کوتاه بنویس")
+                  }
+                >
                   متن تبلیغاتی
                 </button>
-                <button onClick={() => setInput("این ایده کسب‌وکار را تحلیل کن")}>
+
+                <button
+                  onClick={() => setInput("این ایده کسب‌وکار را تحلیل کن")}
+                >
                   تحلیل ایده
                 </button>
-                <button onClick={() => setInput("یک برنامه مطالعه ۷ روزه بده")}>
+
+                <button
+                  onClick={() => setInput("یک برنامه مطالعه ۷ روزه بده")}
+                >
                   برنامه‌ریزی
                 </button>
               </div>
@@ -347,7 +541,9 @@ export default function Home() {
         {imageDataUrl && (
           <div className="image-preview-bar">
             <img src={imageDataUrl} alt="preview" />
+
             <span>تصویر آماده ارسال است</span>
+
             <button onClick={() => setImageDataUrl("")}>حذف</button>
           </div>
         )}
@@ -375,11 +571,7 @@ export default function Home() {
             }}
           />
 
-          <button
-            className="send-btn"
-            onClick={sendMessage}
-            disabled={loading}
-          >
+          <button className="send-btn" onClick={sendMessage} disabled={loading}>
             {loading ? "..." : "ارسال"}
           </button>
         </footer>

@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
+    const { user, error: authError } = await getUserFromRequest(req);
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const {
-      clientId,
       conversationId,
       message,
       image,
@@ -15,13 +23,6 @@ export async function POST(req) {
       return NextResponse.json(
         { error: "OPENROUTER_API_KEY is missing" },
         { status: 500 }
-      );
-    }
-
-    if (!clientId) {
-      return NextResponse.json(
-        { error: "clientId is required" },
-        { status: 400 }
       );
     }
 
@@ -36,12 +37,30 @@ export async function POST(req) {
 
     let activeConversationId = conversationId;
 
+    if (activeConversationId) {
+      const { data: existingConversation, error: existingError } =
+        await supabase
+          .from("conversations")
+          .select("id")
+          .eq("id", activeConversationId)
+          .eq("user_id", user.id)
+          .single();
+
+      if (existingError || !existingConversation) {
+        return NextResponse.json(
+          { error: "Conversation not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     if (!activeConversationId) {
       const { data: newConversation, error: conversationError } =
         await supabase
           .from("conversations")
           .insert({
-            client_id: clientId,
+            user_id: user.id,
+            client_id: user.id,
             title: message ? message.slice(0, 32) : "چت تصویری",
           })
           .select("id")
@@ -79,7 +98,7 @@ export async function POST(req) {
       .from("messages")
       .select("role, content, image_preview, created_at")
       .eq("conversation_id", activeConversationId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(30);
 
     if (recentMessagesError) {
@@ -90,7 +109,7 @@ export async function POST(req) {
       );
     }
 
-    const lastMessages = recentMessages.slice(-12);
+    const lastMessages = [...recentMessages].reverse().slice(-12);
 
     const openRouterMessages = lastMessages.map((m, index) => {
       const isLast =
@@ -175,18 +194,10 @@ export async function POST(req) {
     await supabase
       .from("conversations")
       .update({
-        title: userContent.slice(0, 32),
         updated_at: new Date().toISOString(),
       })
       .eq("id", activeConversationId)
-      .eq("title", "چت جدید");
-
-    await supabase
-      .from("conversations")
-      .update({
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", activeConversationId);
+      .eq("user_id", user.id);
 
     return NextResponse.json({
       reply,

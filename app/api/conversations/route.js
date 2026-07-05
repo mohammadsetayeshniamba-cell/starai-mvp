@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
 export async function GET(req) {
   try {
-    const { searchParams } = new URL(req.url);
-    const clientId = searchParams.get("clientId");
+    const { user, error: authError } = await getUserFromRequest(req);
 
-    if (!clientId) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: "clientId is required" },
-        { status: 400 }
+        { error: authError || "Unauthorized" },
+        { status: 401 }
       );
     }
 
@@ -18,7 +17,7 @@ export async function GET(req) {
     const { data, error } = await supabase
       .from("conversations")
       .select("id, title, created_at, updated_at")
-      .eq("client_id", clientId)
+      .eq("user_id", user.id)
       .order("updated_at", { ascending: false });
 
     if (error) {
@@ -38,21 +37,24 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const { clientId, title = "چت جدید" } = await req.json();
+    const { user, error: authError } = await getUserFromRequest(req);
 
-    if (!clientId) {
+    if (authError || !user) {
       return NextResponse.json(
-        { error: "clientId is required" },
-        { status: 400 }
+        { error: authError || "Unauthorized" },
+        { status: 401 }
       );
     }
+
+    const { title = "چت جدید" } = await req.json();
 
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase
       .from("conversations")
       .insert({
-        client_id: clientId,
+        user_id: user.id,
+        client_id: user.id,
         title,
       })
       .select("id, title, created_at, updated_at")

@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
 export async function GET(req, context) {
   try {
+    const { user, error: authError } = await getUserFromRequest(req);
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: authError || "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     const { id } = await context.params;
 
     if (!id) {
@@ -13,6 +22,20 @@ export async function GET(req, context) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    const { data: conversation, error: conversationError } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .single();
+
+    if (conversationError || !conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 }
+      );
+    }
 
     const { data, error } = await supabase
       .from("messages")
