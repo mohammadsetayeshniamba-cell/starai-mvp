@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Role = "user" | "assistant";
 
@@ -9,17 +9,17 @@ type ChatMessage = {
   role: Role;
   content: string;
   imagePreview?: string;
-  createdAt: string;
+  createdAt?: string;
 };
 
 type Conversation = {
   id: string;
   title: string;
-  messages: ChatMessage[];
-  updatedAt: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
-const STORAGE_KEY = "starai_conversations_v1";
+const CLIENT_ID_KEY = "starai_client_id_v1";
 
 function createId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -29,18 +29,11 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createNewConversation(): Conversation {
-  return {
-    id: createId(),
-    title: "چت جدید",
-    messages: [],
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 export default function Home() {
+  const [clientId, setClientId] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState("openrouter/free");
@@ -50,91 +43,84 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    let savedClientId = localStorage.getItem(CLIENT_ID_KEY);
 
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as Conversation[];
-
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setConversations(parsed);
-          setActiveConversationId(parsed[0].id);
-          return;
-        }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+    if (!savedClientId) {
+      savedClientId = createId();
+      localStorage.setItem(CLIENT_ID_KEY, savedClientId);
     }
 
-    const firstConversation = createNewConversation();
-    setConversations([firstConversation]);
-    setActiveConversationId(firstConversation.id);
+    setClientId(savedClientId);
+  }, []);
+
+  const refreshConversations = useCallback(async (id: string) => {
+    if (!id) return;
+
+    const response = await fetch(
+      `/api/conversations?clientId=${encodeURIComponent(id)}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Load conversations error:", data);
+      return;
+    }
+
+    setConversations(data.conversations || []);
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string) => {
+    if (!conversationId) {
+      setMessages([]);
+      return;
+    }
+
+    const response = await fetch(
+      `/api/conversations/${conversationId}/messages`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Load messages error:", data);
+      setError("خطا در دریافت پیام‌های ذخیره‌شده.");
+      return;
+    }
+
+    const mappedMessages: ChatMessage[] = (data.messages || []).map((m: any) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      imagePreview: m.image_preview || undefined,
+      createdAt: m.created_at,
+    }));
+
+    setMessages(mappedMessages);
   }, []);
 
   useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+    if (clientId) {
+      refreshConversations(clientId);
     }
-  }, [conversations]);
-
-  const activeConversation = useMemo(() => {
-    return conversations.find((c) => c.id === activeConversationId);
-  }, [conversations, activeConversationId]);
+  }, [clientId, refreshConversations]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeConversation?.messages.length, loading]);
-
-  const updateConversationMessages = (
-    conversationId: string,
-    messages: ChatMessage[],
-    fallbackTitle?: string
-  ) => {
-    setConversations((prev) =>
-      prev.map((conversation) => {
-        if (conversation.id !== conversationId) return conversation;
-
-        const firstUserMessage = messages.find((m) => m.role === "user");
-        const title =
-          conversation.title === "چت جدید" && firstUserMessage
-            ? firstUserMessage.content.slice(0, 32) || fallbackTitle || "چت تصویری"
-            : conversation.title;
-
-        return {
-          ...conversation,
-          title,
-          messages,
-          updatedAt: new Date().toISOString(),
-        };
-      })
-    );
-  };
+  }, [messages.length, loading]);
 
   const handleNewChat = () => {
-    const newConversation = createNewConversation();
-
-    setConversations((prev) => [newConversation, ...prev]);
-    setActiveConversationId(newConversation.id);
+    setActiveConversationId("");
+    setMessages([]);
     setInput("");
     setImageDataUrl("");
     setError("");
   };
 
-  const handleDeleteConversation = (id: string) => {
-    const filtered = conversations.filter((c) => c.id !== id);
-
-    if (filtered.length === 0) {
-      const newConversation = createNewConversation();
-      setConversations([newConversation]);
-      setActiveConversationId(newConversation.id);
-      return;
-    }
-
-    setConversations(filtered);
-
-    if (activeConversationId === id) {
-      setActiveConversationId(filtered[0].id);
-    }
+  const handleSelectConversation = async (conversationId: string) => {
+    setActiveConversationId(conversationId);
+    setError("");
+    await loadMessages(conversationId);
   };
 
   const handleImageSelect = (file?: File) => {
@@ -163,45 +149,42 @@ export default function Home() {
     const text = input.trim();
 
     if (!text && !imageDataUrl) return;
-    if (!activeConversation) return;
+
+    if (!clientId) {
+      setError("clientId هنوز آماده نشده. صفحه را یک بار refresh کن.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
+    const userContent = text || "این تصویر را تحلیل کن.";
+    const selectedImage = imageDataUrl;
+
     const userMessage: ChatMessage = {
       id: createId(),
       role: "user",
-      content: text || "این تصویر را تحلیل کن.",
-      imagePreview: imageDataUrl || undefined,
+      content: userContent,
+      imagePreview: selectedImage || undefined,
       createdAt: new Date().toISOString(),
     };
 
-    const nextMessages = [...activeConversation.messages, userMessage];
-
-    updateConversationMessages(
-      activeConversation.id,
-      nextMessages,
-      imageDataUrl ? "چت تصویری" : undefined
-    );
-
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setImageDataUrl("");
 
     try {
-      const apiMessages = nextMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          clientId,
+          conversationId: activeConversationId || null,
+          message: userContent,
+          image: selectedImage || "",
           model: selectedModel,
-          messages: apiMessages,
-          image: userMessage.imagePreview || "",
         }),
       });
 
@@ -212,6 +195,10 @@ export default function Home() {
         throw new Error(data?.error || "Chat request failed");
       }
 
+      if (!activeConversationId && data.conversationId) {
+        setActiveConversationId(data.conversationId);
+      }
+
       const assistantMessage: ChatMessage = {
         id: createId(),
         role: "assistant",
@@ -219,14 +206,13 @@ export default function Home() {
         createdAt: new Date().toISOString(),
       };
 
-      updateConversationMessages(activeConversation.id, [
-        ...nextMessages,
-        assistantMessage,
-      ]);
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      await refreshConversations(clientId);
     } catch (err) {
       console.error(err);
 
-      setError("ارسال پیام با خطا مواجه شد. لاگ ترمینال یا Vercel را بررسی کن.");
+      setError("ارسال پیام با خطا مواجه شد. ترمینال یا Vercel Logs را بررسی کن.");
 
       const errorMessage: ChatMessage = {
         id: createId(),
@@ -235,10 +221,7 @@ export default function Home() {
         createdAt: new Date().toISOString(),
       };
 
-      updateConversationMessages(activeConversation.id, [
-        ...nextMessages,
-        errorMessage,
-      ]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setLoading(false);
     }
@@ -262,6 +245,12 @@ export default function Home() {
         <div className="sidebar-section-title">تاریخچه چت‌ها</div>
 
         <div className="conversation-list">
+          {conversations.length === 0 && (
+            <div style={{ color: "#6b7280", fontSize: 13 }}>
+              هنوز چتی ذخیره نشده.
+            </div>
+          )}
+
           {conversations.map((conversation) => (
             <button
               key={conversation.id}
@@ -270,19 +259,9 @@ export default function Home() {
                   ? "conversation-item active"
                   : "conversation-item"
               }
-              onClick={() => setActiveConversationId(conversation.id)}
+              onClick={() => handleSelectConversation(conversation.id)}
             >
-              <span>{conversation.title}</span>
-
-              <span
-                className="delete-chat"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteConversation(conversation.id);
-                }}
-              >
-                ×
-              </span>
+              <span>{conversation.title || "چت جدید"}</span>
             </button>
           ))}
         </div>
@@ -292,7 +271,7 @@ export default function Home() {
         <header className="chat-header">
           <div>
             <h1>چت هوش مصنوعی</h1>
-            <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها</p>
+            <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها در دیتابیس</p>
           </div>
 
           <select
@@ -305,12 +284,12 @@ export default function Home() {
         </header>
 
         <div className="chat-body">
-          {activeConversation?.messages.length === 0 && (
+          {messages.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">🤖</div>
               <h2>از StarAI بپرسید</h2>
               <p>
-                یک پیام بنویسید یا یک عکس ارسال کنید تا مدل هوش مصنوعی پاسخ دهد.
+                یک پیام بنویسید یا یک عکس ارسال کنید. چت‌ها در Supabase ذخیره می‌شوند.
               </p>
 
               <div className="quick-cards">
@@ -327,7 +306,7 @@ export default function Home() {
             </div>
           )}
 
-          {activeConversation?.messages.map((message) => (
+          {messages.map((message) => (
             <div
               key={message.id}
               className={

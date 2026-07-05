@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
     const {
-      messages = [],
+      clientId,
+      conversationId,
+      message,
       image,
       model = "openrouter/free",
     } = await req.json();
@@ -15,19 +18,91 @@ export async function POST(req) {
       );
     }
 
-    const lastMessages = messages.slice(-12);
+    if (!clientId) {
+      return NextResponse.json(
+        { error: "clientId is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!message && !image) {
+      return NextResponse.json(
+        { error: "message or image is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+
+    let activeConversationId = conversationId;
+
+    if (!activeConversationId) {
+      const { data: newConversation, error: conversationError } =
+        await supabase
+          .from("conversations")
+          .insert({
+            client_id: clientId,
+            title: message ? message.slice(0, 32) : "چت تصویری",
+          })
+          .select("id")
+          .single();
+
+      if (conversationError) {
+        console.error("Create conversation error:", conversationError);
+        return NextResponse.json(
+          { error: conversationError.message },
+          { status: 500 }
+        );
+      }
+
+      activeConversationId = newConversation.id;
+    }
+
+    const userContent = message || "این تصویر را تحلیل کن.";
+
+    const { error: userMessageError } = await supabase.from("messages").insert({
+      conversation_id: activeConversationId,
+      role: "user",
+      content: userContent,
+      image_preview: image || null,
+    });
+
+    if (userMessageError) {
+      console.error("Insert user message error:", userMessageError);
+      return NextResponse.json(
+        { error: userMessageError.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: recentMessages, error: recentMessagesError } = await supabase
+      .from("messages")
+      .select("role, content, image_preview, created_at")
+      .eq("conversation_id", activeConversationId)
+      .order("created_at", { ascending: true })
+      .limit(30);
+
+    if (recentMessagesError) {
+      console.error("Recent messages error:", recentMessagesError);
+      return NextResponse.json(
+        { error: recentMessagesError.message },
+        { status: 500 }
+      );
+    }
+
+    const lastMessages = recentMessages.slice(-12);
 
     const openRouterMessages = lastMessages.map((m, index) => {
-      const isLastUserMessage =
-        index === lastMessages.length - 1 && m.role === "user";
+      const isLast =
+        index === lastMessages.length - 1 && m.role === "user" && image;
 
-      if (isLastUserMessage && image) {
+      if (isLast) {
         return {
           role: "user",
           content: [
             {
               type: "text",
-              text: m.content || " این تصویر را تحلیل کن. لطفا!",
+              text: m.content || "این تصویر را تحلیل کن.",
             },
             {
               type: "image_url",
@@ -79,8 +154,43 @@ export async function POST(req) {
       );
     }
 
+    const reply = data.choices?.[0]?.message?.content || "پاسخی دریافت نشد.";
+
+    const { error: assistantMessageError } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: activeConversationId,
+        role: "assistant",
+        content: reply,
+      });
+
+    if (assistantMessageError) {
+      console.error("Insert assistant message error:", assistantMessageError);
+      return NextResponse.json(
+        { error: assistantMessageError.message },
+        { status: 500 }
+      );
+    }
+
+    await supabase
+      .from("conversations")
+      .update({
+        title: userContent.slice(0, 32),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activeConversationId)
+      .eq("title", "چت جدید");
+
+    await supabase
+      .from("conversations")
+      .update({
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activeConversationId);
+
     return NextResponse.json({
-      reply: data.choices?.[0]?.message?.content || "پاسخی دریافت نشد.",
+      reply,
+      conversationId: activeConversationId,
       usedModel: data.model || model,
     });
   } catch (error) {
