@@ -6,7 +6,7 @@ export default function LandingPage() {
     <main className="landing-page">
       <header className="landing-header">
         <Link href="/" className="landing-brand">
-          <div className="landing-logo">★</div>
+        <img src="/starai-logo.svg" alt="StarAI" className="landing-logo-img" />
           <div>
             <strong>StarAI</strong>
             <span>AI Accounts & Chat Platform</span>
@@ -79,6 +79,60 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+      <footer className="site-footer">
+  <div className="footer-content">
+    <div className="footer-brand">
+      <img src="/starai-logo.svg" alt="StarAI" />
+      <div>
+        <strong>StarAI</strong>
+        <p>
+          پلتفرم خرید اکانت‌های هوش مصنوعی، کیف پول، سفارش آنلاین و چت با مدل‌های مختلف AI.
+        </p>
+      </div>
+    </div>
+
+    <div className="footer-links">
+      <div>
+        <h4>StarAI</h4>
+        <a href="#products">ابزارهای AI</a>
+        <a href="/chat">ورود به پنل</a>
+        <a href="/orders">سفارش‌های من</a>
+      </div>
+
+      <div>
+        <h4>خدمات</h4>
+        <a href="/products/chatgpt">خرید ChatGPT</a>
+        <a href="/products/claude">خرید Claude</a>
+        <a href="/products/gemini">خرید Gemini</a>
+      </div>
+
+      <div>
+        <h4>شبکه‌های اجتماعی</h4>
+        <a href="https://www.linkedin.com/in/mohammad-setayesh-nia/" target="_blank" rel="noreferrer">
+          LinkedIn
+        </a>
+        <a href="https://t.me/" target="_blank" rel="noreferrer">
+          Telegram
+        </a>
+        <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">
+          Instagram
+        </a>
+      </div>
+
+      <div>
+        <h4>درباره ما</h4>
+        <p>
+          StarAI برای ساده‌سازی دسترسی کاربران ایرانی به ابزارهای هوش مصنوعی ساخته شده است.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div className="footer-bottom">
+    <span>© {new Date().getFullYear()} StarAI. همه حقوق محفوظ است.</span>
+    <span>ساخته شده برای نسل جدید کاربران هوش مصنوعی</span>
+  </div>
+</footer>
     </main>
   );
 }
