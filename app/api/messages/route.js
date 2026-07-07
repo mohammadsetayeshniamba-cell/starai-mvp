@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
-export async function DELETE(req, context) {
+export async function GET(req) {
   try {
     const { user, error: authError } = await getUserFromRequest(req);
 
@@ -12,62 +12,61 @@ export async function DELETE(req, context) {
       );
     }
 
-    const params = await context.params;
-    const conversationId = params?.id;
+    const { searchParams } = new URL(req.url);
+    const conversationId = searchParams.get("conversationId");
 
     if (!conversationId) {
       return NextResponse.json(
-        { error: "conversation id is required" },
+        { error: "conversationId is required" },
         { status: 400 }
       );
     }
 
     const supabase = getSupabaseAdmin();
 
-    const { data: conversation, error: findError } = await supabase
+    const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
       .select("id")
       .eq("id", conversationId)
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (findError) {
-      console.error("Find conversation error:", findError);
+    if (conversationError) {
+      console.error("Conversation check error:", conversationError);
 
       return NextResponse.json(
-        { error: findError.message },
+        { error: conversationError.message },
         { status: 500 }
       );
     }
 
     if (!conversation) {
       return NextResponse.json(
-        { error: "Conversation not found or access denied" },
+        { error: "Conversation not found" },
         { status: 404 }
       );
     }
 
-    const { error: deleteError } = await supabase
-      .from("conversations")
-      .delete()
-      .eq("id", conversationId)
-      .eq("user_id", user.id);
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, role, content, image_preview, model, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
 
-    if (deleteError) {
-      console.error("Delete conversation error:", deleteError);
+    if (error) {
+      console.error("Load messages API error:", error);
 
       return NextResponse.json(
-        { error: deleteError.message },
+        { error: error.message },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
-      success: true,
-      deletedId: conversationId,
+      messages: data || [],
     });
   } catch (error) {
-    console.error("Delete conversation API fatal error:", error);
+    console.error("Messages API fatal error:", error);
 
     return NextResponse.json(
       {

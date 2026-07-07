@@ -186,8 +186,8 @@ export default function ProductPage() {
           پنل ادمین
         </Link>
       )}
-        <Link href="/chat" className="panel-link">
-          ورود / پنل کاربری
+        <Link href="/panel" className="panel-link">
+          پنل کاربری
         </Link>
 
       </header>

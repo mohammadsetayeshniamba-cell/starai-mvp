@@ -2917,3 +2917,835 @@ select,
 .sidebar .conversation-item:hover {
   transform: translateY(-1px) !important;
 }
+/* User main panel */
+
+.user-panel-page {
+  min-height: 100vh;
+  direction: rtl;
+  padding: 28px 20px 70px;
+  background:
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.1), transparent 32%),
+    #f8fafc;
+}
+
+.user-panel-header {
+  width: min(1180px, 100%);
+  margin: 0 auto 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 26px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  box-shadow:
+    0 22px 60px rgba(15, 23, 42, 0.08),
+    0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+.panel-kicker {
+  color: #0ea5e9;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.user-panel-header h1 {
+  margin: 6px 0;
+  color: #111827;
+  font-size: 34px;
+}
+
+.user-panel-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.user-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.user-panel-actions a,
+.user-panel-actions button {
+  text-decoration: none;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  padding: 10px 14px;
+  border-radius: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.user-panel-actions .panel-chat-btn {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
+.panel-stat-grid {
+  width: min(1180px, 100%);
+  margin: 0 auto 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.panel-stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  padding: 18px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+}
+
+.panel-stat-card span {
+  display: block;
+  color: #6b7280;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.panel-stat-card b {
+  display: block;
+  color: #111827;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.panel-stat-card small {
+  color: #6b7280;
+}
+
+.panel-stat-card a {
+  display: inline-block;
+  text-decoration: none;
+  background: #111827;
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-weight: 900;
+  margin-top: 8px;
+}
+
+.panel-stat-card.main {
+  background:
+    linear-gradient(135deg, #111827, #1f2937);
+  color: #ffffff;
+}
+
+.panel-stat-card.main span,
+.panel-stat-card.main b,
+.panel-stat-card.main small {
+  color: #ffffff;
+}
+
+.panel-stat-card.main a {
+  background: #ffffff;
+  color: #111827;
+}
+
+.panel-main-grid {
+  width: min(1180px, 100%);
+  margin: 0 auto 20px;
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 16px;
+}
+
+.panel-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.06);
+}
+
+.panel-section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.panel-section-title h2 {
+  margin: 0;
+  color: #111827;
+}
+
+.panel-section-title a {
+  text-decoration: none;
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.panel-account-item,
+.panel-order-row,
+.panel-transaction-item {
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 18px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.panel-account-top,
+.panel-order-row,
+.panel-transaction-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.panel-account-item h3,
+.panel-order-row h3,
+.panel-transaction-item h3 {
+  margin: 0 0 6px;
+  color: #111827;
+}
+
+.panel-account-item p,
+.panel-order-row p,
+.panel-transaction-item p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.7;
+}
+
+.panel-account-top span,
+.panel-order-row span {
+  background: #ecfdf5;
+  color: #166534;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.panel-field {
+  margin-top: 12px;
+}
+
+.panel-field small,
+.panel-delivery-box small {
+  display: block;
+  color: #6b7280;
+  margin-bottom: 6px;
+  font-weight: 800;
+}
+
+.panel-field code {
+  direction: ltr;
+  display: inline-block;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 8px;
+  color: #111827;
+}
+
+.panel-delivery-box {
+  margin-top: 12px;
+  background: #ffffff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.panel-delivery-box pre {
+  margin: 0;
+  white-space: pre-wrap;
+  direction: rtl;
+  color: #111827;
+  line-height: 1.9;
+  font-family: inherit;
+}
+
+.tx-positive {
+  color: #15803d;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tx-negative {
+  color: #b91c1c;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.panel-orders-card {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.panel-soft-empty {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  padding: 18px;
+  color: #6b7280;
+  line-height: 1.9;
+}
+
+.panel-soft-empty a {
+  display: inline-block;
+  margin-right: 8px;
+  color: #2563eb;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.panel-muted {
+  color: #6b7280;
+}
+
+.panel-empty-card,
+.panel-login-card {
+  width: min(520px, 100%);
+  margin: 80px auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 26px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.08);
+}
+
+.panel-login-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+}
+
+.panel-login-card h1 {
+  margin: 0 0 10px;
+}
+
+.panel-login-card p {
+  color: #6b7280;
+  line-height: 1.9;
+}
+
+.panel-primary-link,
+.panel-secondary-link {
+  display: block;
+  text-decoration: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  font-weight: 900;
+}
+
+.panel-primary-link {
+  background: #111827;
+  color: #ffffff;
+}
+
+.panel-secondary-link {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.panel-message {
+  width: min(1180px, 100%);
+  margin: 0 auto 16px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* Chat sidebar only history */
+
+.conversation-row {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.conversation-row.active .conversation-item {
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.delete-conversation-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #991b1b;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.delete-conversation-btn:hover {
+  background: #fee2e2;
+}
+
+@media (max-width: 950px) {
+  .user-panel-header,
+  .panel-account-top,
+  .panel-order-row,
+  .panel-transaction-item {
+    flex-direction: column;
+  }
+
+  .panel-stat-grid,
+  .panel-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* Chat delete modal */
+
+.delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.46);
+  backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  direction: rtl;
+}
+
+.delete-modal-card {
+  width: min(420px, 100%);
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+  text-align: center;
+  box-shadow:
+    0 30px 90px rgba(15, 23, 42, 0.24),
+    0 10px 30px rgba(15, 23, 42, 0.12);
+  animation: deleteModalIn 180ms ease both;
+}
+
+@keyframes deleteModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.delete-modal-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 900;
+  font-size: 26px;
+}
+
+.delete-modal-card h3 {
+  margin: 0 0 8px;
+  color: #111827;
+}
+
+.delete-modal-card p {
+  margin: 0 0 10px;
+  color: #6b7280;
+  line-height: 1.8;
+}
+
+.delete-modal-card strong {
+  display: block;
+  background: #f8fafc;
+  color: #111827;
+  border-radius: 14px;
+  padding: 10px;
+  margin: 12px 0;
+  word-break: break-word;
+}
+
+.delete-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.delete-modal-cancel,
+.delete-modal-confirm {
+  border: none;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.delete-modal-cancel {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.delete-modal-confirm {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.delete-modal-cancel:disabled,
+.delete-modal-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Chat markdown output */
+
+.message-content {
+  white-space: normal !important;
+}
+
+.message-markdown {
+  line-height: 1.95;
+  color: inherit;
+  word-break: break-word;
+}
+
+.message-markdown p {
+  margin: 0 0 10px;
+}
+
+.message-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.message-markdown ul,
+.message-markdown ol {
+  margin: 8px 0 12px;
+  padding-right: 22px;
+}
+
+.message-markdown li {
+  margin-bottom: 6px;
+}
+
+.message-markdown h1,
+.message-markdown h2,
+.message-markdown h3,
+.message-markdown h4 {
+  margin: 14px 0 8px;
+  line-height: 1.5;
+}
+
+.message-markdown blockquote {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-right: 4px solid #93c5fd;
+  background: rgba(239, 246, 255, 0.75);
+  border-radius: 12px;
+  color: #1e3a8a;
+}
+
+.markdown-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 12px 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.message-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+  direction: rtl;
+}
+
+.message-markdown th,
+.message-markdown td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  text-align: right;
+  vertical-align: top;
+}
+
+.message-markdown th {
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 900;
+}
+
+.message-markdown tr:last-child td {
+  border-bottom: none;
+}
+
+.message-markdown code {
+  direction: ltr;
+  unicode-bidi: plaintext;
+  background: rgba(15, 23, 42, 0.08);
+  color: #111827;
+  padding: 2px 6px;
+  border-radius: 7px;
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 0.92em;
+}
+
+.message-markdown pre {
+  direction: ltr;
+  text-align: left;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 16px;
+  padding: 14px;
+  overflow-x: auto;
+  margin: 12px 0;
+  line-height: 1.7;
+}
+
+.message-markdown pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+}
+
+.message-markdown a {
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.message-markdown a:hover {
+  text-decoration: underline;
+}
+
+.message.user .markdown-table-wrap {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.message.user .message-markdown code {
+  background: rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+.delete-modal-error {
+  margin-top: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 10px;
+  line-height: 1.8;
+  font-weight: 800;
+}
+/* Chat full height fix */
+
+html,
+body {
+  min-height: 100%;
+}
+
+.app-shell,
+.app-shell-3d {
+  min-height: 100dvh !important;
+  height: 100dvh !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.chat-panel {
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.chat-body {
+  flex: 1 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+.composer {
+  margin-bottom: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  .app-shell-3d {
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+  }
+}
+/* Chat height fix - safe version */
+
+.app-shell,
+.app-shell-3d {
+  min-height: 100dvh !important;
+  height: auto !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  overflow: visible !important;
+}
+
+.chat-panel {
+  height: auto !important;
+  min-height: calc(100dvh - 24px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.chat-body {
+  flex: 1 1 auto !important;
+  min-height: 260px !important;
+  overflow-y: auto !important;
+}
+
+.composer {
+  flex-shrink: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* اگر نسخه 3D قبلاً overflow hidden داده بود، فقط بک‌گراند را محدود کن نه کل صفحه */
+.app-shell-3d {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  .app-shell-3d {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+
+  .chat-panel {
+    min-height: auto !important;
+  }
+
+  .chat-body {
+    min-height: 360px !important;
+  }
+}
+/* Chat fixed sidebar + fixed topbar */
+
+.app-shell,
+.app-shell-3d {
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: stretch !important;
+}
+
+/* Sidebar ثابت بماند */
+.sidebar {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  position: sticky !important;
+  top: 0 !important;
+  overflow-y: auto !important;
+  flex-shrink: 0 !important;
+  z-index: 20 !important;
+}
+
+/* پنل چت کل ارتفاع صفحه را بگیرد */
+.chat-panel {
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* تاپ‌بار چت ثابت بماند */
+.chat-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  flex-shrink: 0 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* فقط پیام‌ها اسکرول بخورند */
+.chat-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* نوار ارسال پایین چت بماند */
+.composer {
+  flex-shrink: 0 !important;
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 25 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  backdrop-filter: blur(10px);
+  border-top: 1px solid #e5e7eb;
+}
+
+/* برای اینکه آخرین پیام پشت composer نرود */
+.chat-body {
+  padding-bottom: 18px !important;
+}
+
+/* موبایل: سایدبار فیکس نباشد چون صفحه خراب می‌شود */
+@media (max-width: 900px) {
+  .app-shell,
+  .app-shell-3d {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .sidebar {
+    height: auto !important;
+    max-height: none !important;
+    position: relative !important;
+    top: auto !important;
+  }
+
+  .chat-panel {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100dvh !important;
+  }
+
+  .chat-header {
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  .chat-body {
+    min-height: 420px !important;
+    overflow-y: visible !important;
+  }
+
+  .composer {
+    position: sticky !important;
+    bottom: 0 !important;
+  }
+}

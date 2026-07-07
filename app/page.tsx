@@ -16,8 +16,7 @@ export default function LandingPage() {
         <nav className="landing-nav">
           <a href="#products">ابزارها</a>
           <Link href="/orders">سفارش‌های من</Link>
-          <Link href="/chat">ورود / پنل کاربری</Link>
-
+          <Link href="/panel">ورود / پنل کاربری</Link>
         </nav>
       </header>
 
@@ -87,7 +86,7 @@ export default function LandingPage() {
       <div>
         <h4>StarAI</h4>
         <a href="#products">ابزارهای AI</a>
-        <a href="/chat">ورود به پنل</a>
+        <a href="/panel">ورود به پنل</a>
         <a href="/orders">سفارش‌های من</a>
       </div>
 

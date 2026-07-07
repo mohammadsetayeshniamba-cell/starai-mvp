@@ -2,266 +2,355 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getUserFromRequest } from "@/lib/supabaseAdmin";
 
 const ALLOWED_FREE_MODELS = new Set([
+  "openrouter/free",
+  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+  "cohere/north-mini-code:free",
+]);
+
+function getFallbackModels(selectedModel) {
+  const models = [
+    selectedModel,
     "openrouter/free",
-    "openai/gpt-oss-120b:free",
     "openai/gpt-oss-20b:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
+    "openai/gpt-oss-120b:free",
     "google/gemma-4-31b-it:free",
-    "cohere/north-mini-code:free",
-  ]);
-  
-  function getFallbackModels(selectedModel) {
-    const fallbackOrder = [
-      selectedModel,
-      "openrouter/free",
-      "openai/gpt-oss-20b:free",
-      "google/gemma-4-31b-it:free",
-    ];
-  
-    return [...new Set(fallbackOrder)].filter((model) =>
-      ALLOWED_FREE_MODELS.has(model)
-    );
-  }
-  
-  async function callOpenRouter({ model, messages }) {
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer":
-            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-          "X-OpenRouter-Title": "StarAI MVP",
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-        }),
-      }
-    );
-  
-    const data = await response.json();
-  
+  ];
+
+  return [...new Set(models)].filter((model) =>
+    ALLOWED_FREE_MODELS.has(model)
+  );
+}
+
+function parseMaybeJson(rawText) {
+  try {
+    return rawText ? JSON.parse(rawText) : {};
+  } catch {
     return {
-      response,
-      data,
+      raw: rawText,
     };
   }
+}
+function isSecurityPolicyError(message) {
+  return String(message || "")
+    .toLowerCase()
+    .includes("access denied by security policy");
+}
+
+async function callOpenRouter({ model, messages, siteUrl }) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY is missing");
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": siteUrl || "http://localhost:3000",
+      "X-Title": "StarAI",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 900,
+    }),
+  });
+
+  const rawText = await response.text();
+  const data = parseMaybeJson(rawText);
+
+  if (!response.ok) {
+    const openRouterMessage =
+      data?.error?.message ||
+      data?.error ||
+      data?.message ||
+      data?.raw ||
+      rawText ||
+      `OpenRouter HTTP ${response.status}`;
+
+    throw new Error(
+      `Model ${model} failed: ${response.status} ${response.statusText} - ${openRouterMessage}`
+    );
+  }
+
+  const reply = data?.choices?.[0]?.message?.content;
+
+  if (!reply) {
+    throw new Error(
+      `Model ${model} returned no content. Raw response: ${rawText.slice(
+        0,
+        500
+      )}`
+    );
+  }
+
+  return {
+    reply,
+    usedModel: data?.model || model,
+  };
+}
+
+function getErrorStatus(message) {
+  if (message.includes("OPENROUTER_API_KEY")) return 500;
+  if (message.includes("401")) return 401;
+  if (message.includes("402")) return 402;
+  if (message.includes("403")) return 403;
+  if (message.includes("429")) return 429;
+  return 500;
+}
+
 export async function POST(req) {
   try {
     const { user, error: authError } = await getUserFromRequest(req);
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: authError || "Unauthorized" },
+        {
+          error: authError || "Unauthorized",
+        },
         { status: 401 }
       );
     }
 
+    const body = await req.json();
+    const siteUrl =
+    req.headers.get("origin") ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "http://localhost:3000";
     const {
-      conversationId,
       message,
-      image,
+      messages = [],
+      conversationId,
+      clientId,
       model = "openrouter/free",
-    } = await req.json();
-    const selectedModel = ALLOWED_FREE_MODELS.has(model)
-    ? model
-    : "openrouter/free";
-    if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json(
-        { error: "OPENROUTER_API_KEY is missing" },
-        { status: 500 }
-      );
-    }
+      imagePreview,
+    } = body;
 
-    if (!message && !image) {
+    if (!message || !String(message).trim()) {
       return NextResponse.json(
-        { error: "message or image is required" },
+        {
+          error: "Message is required",
+        },
         { status: 400 }
       );
     }
 
     const supabase = getSupabaseAdmin();
 
-    let activeConversationId = conversationId;
+    let activeConversationId = conversationId || "";
 
     if (activeConversationId) {
-      const { data: existingConversation, error: existingError } =
+      const { data: existingConversation, error: conversationError } =
         await supabase
           .from("conversations")
           .select("id")
           .eq("id", activeConversationId)
           .eq("user_id", user.id)
-          .single();
+          .maybeSingle();
 
-      if (existingError || !existingConversation) {
-        return NextResponse.json(
-          { error: "Conversation not found" },
-          { status: 404 }
-        );
+      if (conversationError) {
+        console.error("Conversation check error:", conversationError);
+      }
+
+      if (!existingConversation) {
+        activeConversationId = "";
       }
     }
 
     if (!activeConversationId) {
-      const { data: newConversation, error: conversationError } =
+      const title =
+        String(message).trim().length > 40
+          ? String(message).trim().slice(0, 40) + "..."
+          : String(message).trim();
+
+      const { data: newConversation, error: createConversationError } =
         await supabase
           .from("conversations")
           .insert({
+            client_id: clientId || user.id,
             user_id: user.id,
-            client_id: user.id,
-            title: message ? message.slice(0, 32) : "چت تصویری",
+            title,
           })
           .select("id")
           .single();
 
-      if (conversationError) {
-        console.error("Create conversation error:", conversationError);
+      if (createConversationError) {
+        console.error("Create conversation error:", createConversationError);
+
         return NextResponse.json(
-          { error: conversationError.message },
+          {
+            error: createConversationError.message,
+          },
           { status: 500 }
         );
       }
 
       activeConversationId = newConversation.id;
     }
-
-    const userContent = message || "این تصویر را تحلیل کن.";
-
-    const { error: userMessageError } = await supabase.from("messages").insert({
-      conversation_id: activeConversationId,
-      role: "user",
-      content: userContent,
-      image_preview: image || null,
-    });
-
-    if (userMessageError) {
-      console.error("Insert user message error:", userMessageError);
-      return NextResponse.json(
-        { error: userMessageError.message },
-        { status: 500 }
-      );
+    function buildPolicyFallbackReply() {
+      return [
+        "این گفتگو شامل بخشی از متن یا تاریخچه‌ای است که توسط سیاست امنیتی مدل قابل ارسال نیست.",
+        "",
+        "برای ادامه، لطفاً پیام را بدون اطلاعات حساس مثل پسورد، API Key، توکن، لاگ امنیتی یا متن مشکوک دوباره بنویسید.",
+        "",
+        "پیشنهاد: یک چت جدید باز کنید و فقط سؤال اصلی را بدون اطلاعات محرمانه بپرسید.",
+      ].join("\n");
     }
 
-    const { data: recentMessages, error: recentMessagesError } = await supabase
+    const cleanMessage = sanitizeForModel(message);
+    
+    const { error: saveUserMessageError } = await supabase
       .from("messages")
-      .select("role, content, image_preview, created_at")
-      .eq("conversation_id", activeConversationId)
-      .order("created_at", { ascending: false })
-      .limit(30);
-
-    if (recentMessagesError) {
-      console.error("Recent messages error:", recentMessagesError);
-      return NextResponse.json(
-        { error: recentMessagesError.message },
-        { status: 500 }
-      );
-    }
-
-    const lastMessages = [...recentMessages].reverse().slice(-12);
-
-    const openRouterMessages = lastMessages.map((m, index) => {
-      const isLast =
-        index === lastMessages.length - 1 && m.role === "user" && image;
-
-      if (isLast) {
-        return {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: m.content || "این تصویر را تحلیل کن.",
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: image,
-              },
-            },
-          ],
-        };
-      }
-
-      return {
-        role: m.role,
-        content: m.content,
-      };
-    });
-
-    const fallbackModels = getFallbackModels(selectedModel);
-
-    let finalResponse = null;
-    let finalData = null;
-    let workingModel = null;
-    let lastErrorData = null;
-    let lastStatus = null;
-    
-    for (const candidateModel of fallbackModels) {
-      console.log("Trying OpenRouter model:", candidateModel);
-    
-      const { response, data } = await callOpenRouter({
-        model: candidateModel,
-        messages: openRouterMessages,
+      .insert({
+        conversation_id: activeConversationId,
+        role: "user",
+        content: cleanMessage,
+        image_preview: imagePreview || null,
       });
+
+    if (saveUserMessageError) {
+      console.error("Save user message error:", saveUserMessageError);
+    }
+
+    const systemMessage = {
+      role: "system",
+      content:
+      "You are StarAI, a helpful Persian-first AI assistant. پاسخ‌ها را شفاف، کاربردی و تا حد امکان فارسی بده. برای قالب‌بندی از Markdown استفاده کن. اگر جدول لازم بود، جدول را با فرمت Markdown/GFM بساز. از HTML خام مثل <br> استفاده نکن و به جای آن خط جدید معمولی بگذار.",
+    };
     
-      if (response.ok) {
-        finalResponse = response;
-        finalData = data;
-        workingModel = candidateModel;
-        break;
-      }
-    
-      lastErrorData = data;
-      lastStatus = response.status;
-    
-      console.error("OpenRouter failed model:", candidateModel);
-      console.error("OpenRouter status:", response.status);
-      console.error("OpenRouter response:", data);
-    
-      const shouldRetry =
-        response.status === 429 ||
-        response.status === 500 ||
-        response.status === 502 ||
-        response.status === 503 ||
-        response.status === 504;
-    
-      if (!shouldRetry) {
-        break;
-      }
+    function sanitizeForModel(text) {
+      return String(text || "")
+        .replace(/sk-[a-zA-Z0-9-_]{12,}/g, "[REDACTED_API_KEY]")
+        .replace(/sk-or-v1-[a-zA-Z0-9-_]{12,}/g, "[REDACTED_OPENROUTER_KEY]")
+        .replace(/sb_secret_[a-zA-Z0-9-_]{12,}/g, "[REDACTED_SUPABASE_SECRET]")
+        .replace(/eyJ[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+\.[a-zA-Z0-9-_]+/g, "[REDACTED_TOKEN]")
+        .replace(/password\s*[:=]\s*[^\s\n]+/gi, "password: [REDACTED]")
+        .replace(/رمز\s*[:=]\s*[^\s\n]+/gi, "رمز: [REDACTED]")
+        .trim();
     }
     
-    if (!finalResponse || !finalData || !workingModel) {
+ const historyMessages = [];
+
+    
+    const fullChatMessages = [systemMessage, ...historyMessages];
+    
+    const lastMessage = fullChatMessages[fullChatMessages.length - 1];
+    
+    if (
+      !lastMessage ||
+      lastMessage.role !== "user" ||
+      lastMessage.content !== cleanMessage
+    ) {
+      fullChatMessages.push({
+        role: "user",
+        content: cleanMessage,
+      });
+    }
+    
+    const minimalChatMessages = [
+      systemMessage,
+      {
+        role: "user",
+        content: cleanMessage,
+      },
+    ];
+    const fallbackModels = getFallbackModels(model);
+
+    if (fallbackModels.length === 0) {
       return NextResponse.json(
         {
-          error: "OpenRouter API failed",
-          status: lastStatus,
-          details: lastErrorData,
+          error: "Selected model is not allowed.",
         },
-        { status: lastStatus || 500 }
+        { status: 400 }
       );
     }
+
+    let reply = "";
+    let usedModel = "";
+    let fallbackFrom = "";
+    let historySkippedDueToPolicy = false;
+    const modelErrors = [];
     
-    const data = finalData;
-    const fallbackFrom =
-      workingModel !== selectedModel ? selectedModel : null;
+    for (const candidateModel of fallbackModels) {
+      try {
+        const result = await callOpenRouter({
+          model: candidateModel,
+          messages: minimalChatMessages,
+          siteUrl,
+        });
+        reply = result.reply;
+        usedModel = result.usedModel || candidateModel;
+    
+        if (candidateModel !== model) {
+          fallbackFrom = model;
+        }
+    
+        break;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+    
+        console.error("OpenRouter model failed with history:", errorMessage);
+        modelErrors.push(errorMessage);
+    
+        if (isSecurityPolicyError(errorMessage)) {
+          try {
+            const retryResult = await callOpenRouter({
+              model: candidateModel,
+              messages: minimalChatMessages,
+            });
+    
+            reply = retryResult.reply;
+            usedModel = retryResult.usedModel || candidateModel;
+            historySkippedDueToPolicy = true;
+    
+            if (candidateModel !== model) {
+              fallbackFrom = model;
+            }
+    
+            break;
+          } catch (retryError) {
+            const retryErrorMessage =
+              retryError instanceof Error
+                ? retryError.message
+                : String(retryError);
+    
+            console.error(
+              "OpenRouter model failed without history:",
+              retryErrorMessage
+            );
+    
+            modelErrors.push(retryErrorMessage);
+          }
+        }
+      }
+    }
 
-    const reply = data.choices?.[0]?.message?.content || "پاسخی دریافت نشد.";
-    const usedModel = data.model || workingModel;
-        const { error: assistantMessageError } = await supabase
-    .from("messages")
-    .insert({
-      conversation_id: activeConversationId,
-      role: "assistant",
-      content: reply,
-      model: usedModel,
-    });
+    if (!reply) {
+      const allErrorsText = modelErrors.join(" | ");
+    
+      throw new Error("OpenRouter API failed. " + allErrorsText);
+    }
 
-    if (assistantMessageError) {
-      console.error("Insert assistant message error:", assistantMessageError);
-      return NextResponse.json(
-        { error: assistantMessageError.message },
-        { status: 500 }
+    const { error: saveAssistantMessageError } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: activeConversationId,
+        role: "assistant",
+        content: reply,
+        model: usedModel,
+      });
+
+    if (saveAssistantMessageError) {
+      console.error(
+        "Save assistant message error:",
+        saveAssistantMessageError
       );
     }
 
@@ -278,16 +367,21 @@ export async function POST(req) {
         conversationId: activeConversationId,
         usedModel,
         fallbackFrom,
+        historySkippedDueToPolicy,
       });
   } catch (error) {
-    console.error("Server error:", error);
+    const message =
+      error instanceof Error ? error.message : String(error || "Server error");
+
+    console.error("Chat API fatal error:", message);
 
     return NextResponse.json(
       {
-        error: "Server error",
-        details: error.message,
+        error: message,
       },
-      { status: 500 }
+      {
+        status: getErrorStatus(message),
+      }
     );
   }
 }

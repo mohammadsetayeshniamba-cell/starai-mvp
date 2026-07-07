@@ -9,6 +9,7 @@ import {
   type MouseEvent,
 } from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import MessageRenderer from "@/app/components/MessageRenderer";
 import { formatToman } from "@/lib/products";
 type Role = "user" | "assistant";
 
@@ -88,11 +89,13 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-
+  const [conversationToDelete, setConversationToDelete] =useState<Conversation | null>(null);
+  const [deletingConversationId, setDeletingConversationId] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState("");
   const [chatTilt, setChatTilt] = useState({
     rx: "0deg",
     ry: "0deg",
@@ -205,45 +208,110 @@ export default function Home() {
     },
     [session?.access_token]
   );
-
+  const requestDeleteConversation = (conversation: Conversation) => {
+    setDeleteError("");
+    setConversationToDelete(conversation);
+  };
+  
+  const confirmDeleteConversation = async () => {
+    if (!session?.access_token || !conversationToDelete) return;
+  
+    const conversationId = conversationToDelete.id;
+  
+    setDeletingConversationId(conversationId);
+  
+    try {
+      const response = await fetch(
+        `/api/conversations?conversationId=${encodeURIComponent(conversationId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+  
+      const rawText = await response.text();
+  
+      let deleteData: any = {};
+  
+      try {
+        deleteData = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        deleteData = {
+          error: rawText,
+        };
+      }
+  
+      if (!response.ok) {
+        console.error("Delete conversation error:", deleteData);
+      
+        setDeleteError(
+          deleteData?.error ||
+            deleteData?.details ||
+            "حذف چت با خطا مواجه شد."
+        );
+      
+        return;
+      }
+  
+      setConversations((prev) =>
+        prev.filter((conversation) => conversation.id !== conversationId)
+      );
+  
+      if (activeConversationId === conversationId) {
+        setActiveConversationId("");
+        setMessages([]);
+      }
+  
+      setConversationToDelete(null);
+    } finally {
+      setDeletingConversationId("");
+    }
+  };
+  
+  const cancelDeleteConversation = () => {
+    if (deletingConversationId) return;
+    setDeleteError("");
+    setConversationToDelete(null);
+  };
   const loadMessages = useCallback(
     async (conversationId: string, accessToken?: string) => {
       const token = accessToken || session?.access_token;
-
-      if (!token || !conversationId) {
-        setMessages([]);
-        return;
-      }
-
+  
+      if (!token || !conversationId) return;
+  
       const response = await fetch(
-        `/api/conversations/${conversationId}/messages`,
+        `/api/messages?conversationId=${conversationId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-
-      const data = await response.json();
-
+  
+      const rawText = await response.text();
+  
+      let messagesData: any = {};
+  
+      try {
+        messagesData = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        messagesData = {
+          error: rawText || "Empty response from messages API",
+        };
+      }
+  
       if (!response.ok) {
-        console.error("Load messages error:", data);
-        setError("خطا در دریافت پیام‌های ذخیره‌شده.");
+        console.error("Load messages error:", {
+          status: response.status,
+          messagesData,
+          rawText,
+        });
         return;
       }
-
-      const mappedMessages: ChatMessage[] = (data.messages || []).map(
-        (m: any) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          imagePreview: m.image_preview || undefined,
-          model: m.model || undefined,
-          createdAt: m.created_at,
-        })
-      );
-
-      setMessages(mappedMessages);
+  
+      setMessages(messagesData.messages || []);
     },
     [session?.access_token]
   );
@@ -432,27 +500,57 @@ export default function Home() {
           model: selectedModel,
         }),
       });
+      const rawText = await response.text();
 
-      const data = await response.json();
-
+      let chatData: any = {};
+      
+      try {
+        chatData = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        chatData = {
+          error: rawText,
+        };
+      }
+      
       if (!response.ok) {
-        console.error("Chat API error:", data);
-        throw new Error(data?.error || "Chat request failed");
+        const errorMessage =
+          chatData?.message ||
+          chatData?.error ||
+          chatData?.details ||
+          rawText ||
+          `Chat API failed with status ${response.status}`;
+      
+        console.error("Chat API error:", {
+          status: response.status,
+          chatData,
+          rawText,
+          errorMessage,
+        });
+      
+        const assistantErrorMessage: ChatMessage = {
+          id: createId(),
+          role: "assistant",
+          content:
+            "اتصال به مدل هوش مصنوعی با خطا مواجه شد.\n\n" +
+            errorMessage,
+        };
+      
+        setMessages((prev) => [...prev, assistantErrorMessage]);
+        return;
       }
 
-      if (!activeConversationId && data.conversationId) {
-        setActiveConversationId(data.conversationId);
+      if (!activeConversationId && chatData.conversationId) {
+        setActiveConversationId(chatData.conversationId);
       }
-
+      
       const assistantMessage: ChatMessage = {
         id: createId(),
         role: "assistant",
-        content: data.reply,
-        model: data.usedModel || selectedModel,
-        createdAt: new Date().toISOString(),
+        content: chatData.reply,
+        model: chatData.usedModel,
       };
       
-      if (data.fallbackFrom) {
+      if (chatData.fallbackFrom) {
         setError("مدل انتخاب‌شده شلوغ بود؛ پاسخ با یک مدل رایگان جایگزین تولید شد.");
       }
 
@@ -547,76 +645,55 @@ export default function Home() {
           <span className="depth-orb depth-orb-two" />
           <span className="depth-orb depth-orb-three" />
         </div>
-              <aside className="sidebar">
-        <div className="brand">
-          <div className="logo">★</div>
+        <aside className="sidebar">
+  <div className="sidebar-header">
+    <h2>StarAI Chat</h2>
+    <p>{user?.email}</p>
+  </div>
 
-          <div>
-            <div className="brand-title">StarAI</div>
-            <div className="brand-subtitle">AI Chat Platform</div>
-          </div>
-        </div>
+  <Link href="/panel" className="sidebar-home-link">
+    بازگشت به پنل کاربری
+  </Link>
 
-        <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>
-  وارد شده با:
-  <br />
-  <b>{user.email}</b>
-</div>
+  <button className="new-chat-btn" onClick={handleNewChat}>
+    + چت جدید
+  </button>
 
-<div className="wallet-mini-card">
-  <span>موجودی کیف پول</span>
-  <b>{formatToman(walletBalance ?? 0)}</b>
-
-    <Link href="/wallet" className="wallet-buy-link">
-      شارژ کیف پول
-    </Link>
-</div>
-
-<button className="new-chat-btn" onClick={handleNewChat}>
-  + چت جدید
-</button>
-
-        <button className="logout-btn" onClick={handleLogout}>
-          خروج
+  <div className="conversation-list">
+    {conversations.map((conversation) => (
+      <div
+        className={
+          activeConversationId === conversation.id
+            ? "conversation-row active"
+            : "conversation-row"
+        }
+        key={conversation.id}
+      >
+        <button
+          className="conversation-item"
+          onClick={() => handleSelectConversation(conversation.id)}
+        >
+          {conversation.title}
         </button>
-        <Link href="/wallet" className="sidebar-home-link">
-          کیف پول
-        </Link>
-        <Link href="/orders" className="sidebar-home-link">
-        سفارش‌های من
-        </Link>
-        {isAdmin && (
-        <Link href="/admin" className="sidebar-home-link">
-          پنل ادمین
-        </Link>
-         )}
-        <Link href="/" className="sidebar-home-link">
-        صفحه اصلی
-        </Link>
-        <div className="sidebar-section-title">تاریخچه چت‌ها</div>
 
-        <div className="conversation-list">
-          {conversations.length === 0 && (
-            <div style={{ color: "#6b7280", fontSize: 13 }}>
-              هنوز چتی ذخیره نشده.
-            </div>
-          )}
-
-          {conversations.map((conversation) => (
-            <button
-              key={conversation.id}
-              className={
-                conversation.id === activeConversationId
-                  ? "conversation-item active"
-                  : "conversation-item"
-              }
-              onClick={() => handleSelectConversation(conversation.id)}
-            >
-              <span>{conversation.title || "چت جدید"}</span>
-            </button>
-          ))}
+              <button
+          className="delete-conversation-btn"
+          onClick={(event) => {
+              event.stopPropagation();
+              requestDeleteConversation(conversation);
+            }}
+            title="حذف چت"
+          >
+            ×
+        </button>
         </div>
-      </aside>
+    ))}
+  </div>
+
+  <button className="logout-btn" onClick={handleLogout}>
+    خروج
+  </button>
+</aside>
 
             <section
         className="chat-panel chat-panel-3d"
@@ -712,7 +789,9 @@ export default function Home() {
                   />
                 )}
 
-                <div className="message-content">{message.content}</div>
+                <div className="message-content">
+                  <MessageRenderer content={message.content} />
+                </div>
                 {message.role === "assistant" && message.model && (
                 <div className="message-model">
                   پاسخ با: {getModelLabel(message.model)}
@@ -742,6 +821,49 @@ export default function Home() {
             <button onClick={() => setImageDataUrl("")}>حذف</button>
           </div>
         )}
+        {conversationToDelete && (
+  <div className="delete-modal-backdrop" onClick={cancelDeleteConversation}>
+    <div
+      className="delete-modal-card"
+      onClick={(event) => event.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="delete-modal-icon">!</div>
+
+      <h3>حذف چت</h3>
+
+      <p>
+        آیا مطمئن هستید که می‌خواهید این چت حذف شود؟
+      </p>
+
+      <strong>{conversationToDelete.title}</strong>
+      {deleteError && (
+  <div className="delete-modal-error">
+    {deleteError}
+  </div>
+)}
+
+      <div className="delete-modal-actions">
+        <button
+          className="delete-modal-cancel"
+          onClick={cancelDeleteConversation}
+          disabled={Boolean(deletingConversationId)}
+        >
+          انصراف
+        </button>
+
+        <button
+          className="delete-modal-confirm"
+          onClick={confirmDeleteConversation}
+          disabled={Boolean(deletingConversationId)}
+        >
+          {deletingConversationId ? "در حال حذف..." : "بله، حذف شود"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
         <footer className="composer">
           <label className="upload-btn">
@@ -771,6 +893,7 @@ export default function Home() {
           </button>
         </footer>
       </section>
+      
     </main>
   );
 }

@@ -15,6 +15,10 @@ function getAccountTypeLabel(accountType) {
   return accountType;
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
 export async function GET(req) {
   try {
     const { user, error: authError } = await getUserFromRequest(req);
@@ -31,7 +35,7 @@ export async function GET(req) {
     const { data, error } = await supabase
       .from("orders")
       .select(
-        "id, product_slug, product_name, plan_id, plan_name, account_type, price, currency, status, fulfillment_status, delivery_message, delivered_at, created_at"
+        "id, product_slug, product_name, plan_id, plan_name, account_type, fulfillment_email, price, currency, status, fulfillment_status, delivery_message, delivered_at, created_at"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
@@ -41,17 +45,11 @@ export async function GET(req) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      orders: data,
-    });
+    return NextResponse.json({ orders: data });
   } catch (error) {
     console.error("Orders GET API error:", error);
-
     return NextResponse.json(
-      {
-        error: "Server error",
-        details: error.message,
-      },
+      { error: "Server error", details: error.message },
       { status: 500 }
     );
   }
@@ -68,7 +66,12 @@ export async function POST(req) {
       );
     }
 
-    const { productSlug, planId, accountType } = await req.json();
+    const {
+      productSlug,
+      planId,
+      accountType,
+      fulfillmentEmail,
+    } = await req.json();
 
     if (!productSlug || !planId || !accountType) {
       return NextResponse.json(
@@ -80,6 +83,16 @@ export async function POST(req) {
     if (!ACCOUNT_TYPES.has(accountType)) {
       return NextResponse.json(
         { error: "Invalid account type" },
+        { status: 400 }
+      );
+    }
+
+    if (accountType === "customer_email" && !isValidEmail(fulfillmentEmail)) {
+      return NextResponse.json(
+        {
+          error:
+            "برای خرید با ایمیل شخصی، ایمیل مقصد معتبر را وارد کنید.",
+        },
         { status: 400 }
       );
     }
@@ -110,16 +123,20 @@ export async function POST(req) {
     const supabase = getSupabaseAdmin();
 
     const { data, error } = await supabase
-    .rpc("purchase_with_wallet", {
-      p_user_id: user.id,
-      p_buyer_email: user.email || null,
-      p_product_slug: product.slug,
-      p_product_name: product.name,
-      p_plan_id: plan.id,
-      p_plan_name: plan.name,
-      p_account_type: accountType,
-      p_price: finalPrice,
-    })
+      .rpc("purchase_with_wallet", {
+        p_user_id: user.id,
+        p_buyer_email: user.email || null,
+        p_fulfillment_email:
+          accountType === "customer_email"
+            ? String(fulfillmentEmail).trim()
+            : null,
+        p_product_slug: product.slug,
+        p_product_name: product.name,
+        p_plan_id: plan.id,
+        p_plan_name: plan.name,
+        p_account_type: accountType,
+        p_price: finalPrice,
+      })
       .single();
 
     if (error) {
@@ -135,12 +152,33 @@ export async function POST(req) {
         );
       }
 
-      return NextResponse.json(
-        {
-          error: error.message,
-        },
-        { status: 500 }
-      );
+      if (error.message?.includes("FULFILLMENT_EMAIL_REQUIRED")) {
+        return NextResponse.json(
+          {
+            error: "FULFILLMENT_EMAIL_REQUIRED",
+            message: "ایمیل مقصد برای ساخت اکانت الزامی است.",
+          },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    let autoDelivery = null;
+
+    if (accountType !== "customer_email") {
+      const { data: deliveryData, error: deliveryError } = await supabase
+        .rpc("auto_deliver_order_from_inventory", {
+          p_order_id: data.order_id,
+        })
+        .single();
+
+      if (deliveryError) {
+        console.error("Auto delivery error:", deliveryError);
+      } else {
+        autoDelivery = deliveryData;
+      }
     }
 
     return NextResponse.json({
@@ -156,16 +194,18 @@ export async function POST(req) {
       },
       accountType,
       accountTypeLabel: getAccountTypeLabel(accountType),
+      fulfillmentEmail:
+        accountType === "customer_email"
+          ? String(fulfillmentEmail).trim()
+          : null,
       price: finalPrice,
+      autoDelivered: Boolean(autoDelivery?.delivered),
+      deliveryMessage: autoDelivery?.message || null,
     });
   } catch (error) {
     console.error("Orders POST API error:", error);
-
     return NextResponse.json(
-      {
-        error: "Server error",
-        details: error.message,
-      },
+      { error: "Server error", details: error.message },
       { status: 500 }
     );
   }
