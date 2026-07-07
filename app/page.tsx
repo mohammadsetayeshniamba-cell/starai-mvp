@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { products } from "@/lib/products";
-
+import Product3DCard from "@/app/components/Product3DCard";
 export default function LandingPage() {
   return (
     <main className="landing-page">
@@ -61,22 +61,14 @@ export default function LandingPage() {
         </div>
 
         <div className="products-grid">
-          {products.map((product) => (
-            <Link
-              href={`/products/${product.slug}`}
-              className="ai-product-card"
-              key={product.slug}
-            >
-              <div className={`product-visual ${product.theme}`}>
-                <span>{product.logoText}</span>
-              </div>
-
-              <div className="product-info">
-                <h3>{product.name}</h3>
-                <p>{product.subtitle}</p>
-              </div>
-            </Link>
-          ))}
+              {products.map((product, index) => (
+        <Product3DCard
+          key={product.slug}
+          product={product}
+          index={index}
+          isPopular={["chatgpt", "claude"].includes(product.slug)}
+        />
+      ))}
         </div>
       </section>
       <footer className="site-footer">

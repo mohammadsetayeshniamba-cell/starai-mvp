@@ -1,6 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+} from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
 import { formatToman } from "@/lib/products";
 type Role = "user" | "assistant";
@@ -20,6 +27,7 @@ type Conversation = {
   created_at?: string;
   updated_at?: string;
 };
+
 const AI_MODELS = [
   {
     id: "openrouter/free",
@@ -85,7 +93,10 @@ export default function Home() {
   const [activeConversationId, setActiveConversationId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
-
+  const [chatTilt, setChatTilt] = useState({
+    rx: "0deg",
+    ry: "0deg",
+  });
   const [input, setInput] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
@@ -140,7 +151,33 @@ export default function Home() {
     },
     [session?.access_token]
   );
-
+  const handleChatTilt = (event: MouseEvent<HTMLElement>) => {
+    if (window.innerWidth < 900) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  
+    const rect = event.currentTarget.getBoundingClientRect();
+  
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+  
+    const px = x / rect.width;
+    const py = y / rect.height;
+  
+    const rotateY = (px - 0.5) * 7;
+    const rotateX = (0.5 - py) * 5;
+  
+    setChatTilt({
+      rx: `${rotateX}deg`,
+      ry: `${rotateY}deg`,
+    });
+  };
+  
+  const resetChatTilt = () => {
+    setChatTilt({
+      rx: "0deg",
+      ry: "0deg",
+    });
+  };
   const refreshConversations = useCallback(
     async (accessToken?: string) => {
       const token = accessToken || session?.access_token;
@@ -504,8 +541,13 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
+      <main className="app-shell app-shell-3d">
+        <div className="chat-depth-bg" aria-hidden="true">
+          <span className="depth-orb depth-orb-one" />
+          <span className="depth-orb depth-orb-two" />
+          <span className="depth-orb depth-orb-three" />
+        </div>
+              <aside className="sidebar">
         <div className="brand">
           <div className="logo">★</div>
 
@@ -576,8 +618,17 @@ export default function Home() {
         </div>
       </aside>
 
-      <section className="chat-panel">
-        <header className="chat-header">
+            <section
+        className="chat-panel chat-panel-3d"
+        onMouseMove={handleChatTilt}
+        onMouseLeave={resetChatTilt}
+        style={
+          {
+            "--chat-rx": chatTilt.rx,
+            "--chat-ry": chatTilt.ry,
+          } as CSSProperties
+        }
+      >        <header className="chat-header">
           <div>
             <h1>چت هوش مصنوعی</h1>
             <p>ارسال متن، تحلیل عکس و ذخیره چت‌ها در حساب کاربری شما</p>

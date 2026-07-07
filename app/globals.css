@@ -2235,3 +2235,685 @@ select {
     grid-template-columns: 1fr;
   }
 }
+/* 3D UI Upgrade */
+
+.app-shell-3d {
+  position: relative;
+  perspective: 1500px;
+  transform-style: preserve-3d;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.18), transparent 32%),
+    radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.16), transparent 30%),
+    radial-gradient(circle at 55% 90%, rgba(34, 197, 94, 0.12), transparent 35%),
+    #f8fafc;
+}
+
+.chat-depth-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.depth-orb {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  filter: blur(28px);
+  opacity: 0.58;
+  animation: depthFloat 9s ease-in-out infinite alternate;
+}
+
+.depth-orb-one {
+  width: 260px;
+  height: 260px;
+  background: rgba(56, 189, 248, 0.35);
+  top: 10%;
+  right: 18%;
+}
+
+.depth-orb-two {
+  width: 320px;
+  height: 320px;
+  background: rgba(168, 85, 247, 0.25);
+  bottom: 8%;
+  left: 10%;
+  animation-delay: 1.4s;
+}
+
+.depth-orb-three {
+  width: 180px;
+  height: 180px;
+  background: rgba(34, 197, 94, 0.22);
+  top: 55%;
+  right: 55%;
+  animation-delay: 2.4s;
+}
+
+@keyframes depthFloat {
+  from {
+    transform: translate3d(0, 0, -40px) scale(1);
+  }
+
+  to {
+    transform: translate3d(22px, -28px, 30px) scale(1.08);
+  }
+}
+
+.app-shell-3d .sidebar,
+.app-shell-3d .chat-panel {
+  position: relative;
+  z-index: 1;
+  transform-style: preserve-3d;
+}
+
+.app-shell-3d .sidebar {
+  transform: translateZ(38px);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px);
+  border-left: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 28px 80px rgba(15, 23, 42, 0.13),
+    0 10px 30px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.chat-panel-3d {
+  transform:
+    rotateX(var(--chat-rx))
+    rotateY(var(--chat-ry))
+    translateZ(58px);
+  transform-style: preserve-3d;
+  transition: transform 160ms ease-out;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 42px 120px rgba(15, 23, 42, 0.16),
+    0 18px 50px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.chat-panel-3d .chat-header {
+  transform: translateZ(38px);
+}
+
+.chat-panel-3d .chat-body {
+  transform-style: preserve-3d;
+  transform: translateZ(24px);
+}
+
+.chat-panel-3d .composer {
+  transform: translateZ(82px);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    0 -18px 50px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.message-bubble {
+  transform: translateZ(24px);
+  animation: messageDepthIn 260ms ease both;
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.10),
+    0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+@keyframes messageDepthIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, -30px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 24px) scale(1);
+  }
+}
+
+.wallet-mini-card,
+.model-picker,
+.model-select,
+.wallet-product-card {
+  background: rgba(255, 255, 255, 0.66) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.send-btn,
+.new-chat-btn,
+.wallet-buy-link,
+.primary-action,
+.buy-button,
+.wallet-submit-btn,
+.admin-save-btn {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 38%),
+    linear-gradient(135deg, #111827, #1f2937) !important;
+  box-shadow:
+    0 14px 30px rgba(17, 24, 39, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  transform: translateZ(26px);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.send-btn:hover,
+.new-chat-btn:hover,
+.wallet-buy-link:hover,
+.primary-action:hover,
+.buy-button:hover,
+.wallet-submit-btn:hover,
+.admin-save-btn:hover {
+  transform: translate3d(0, -2px, 42px);
+  box-shadow:
+    0 22px 44px rgba(17, 24, 39, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.24);
+}
+
+.send-btn:active,
+.new-chat-btn:active,
+.wallet-buy-link:active,
+.primary-action:active,
+.buy-button:active,
+.wallet-submit-btn:active,
+.admin-save-btn:active {
+  transform: translate3d(0, 1px, 18px);
+}
+
+/* Landing 3D */
+
+.landing-page {
+  perspective: 1500px;
+  transform-style: preserve-3d;
+  overflow-x: hidden;
+}
+
+.landing-hero {
+  perspective: 1500px;
+  transform-style: preserve-3d;
+}
+
+.hero-content {
+  transform: translateZ(38px);
+  box-shadow:
+    0 38px 100px rgba(15, 23, 42, 0.12),
+    0 14px 36px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.hero-card {
+  transform: translateZ(68px) rotateY(-5deg) rotateX(3deg);
+  box-shadow:
+    0 46px 120px rgba(15, 23, 42, 0.22),
+    0 18px 50px rgba(15, 23, 42, 0.14);
+  animation: heroFloat3D 5.5s ease-in-out infinite alternate;
+}
+
+.hero-orb {
+  position: relative;
+  transform: translateZ(72px);
+  box-shadow:
+    0 26px 60px rgba(56, 189, 248, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.hero-orb::after {
+  content: "";
+  position: absolute;
+  width: 42%;
+  height: 22%;
+  right: 24%;
+  top: 18%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  filter: blur(8px);
+}
+
+@keyframes heroFloat3D {
+  from {
+    transform: translate3d(0, 0, 68px) rotateY(-5deg) rotateX(3deg);
+  }
+
+  to {
+    transform: translate3d(0, -14px, 86px) rotateY(-2deg) rotateX(5deg);
+  }
+}
+
+.products-section {
+  perspective: 1600px;
+}
+
+.products-grid {
+  transform-style: preserve-3d;
+  gap: 28px;
+}
+
+.ai-product-card-3d {
+  position: relative;
+  overflow: visible;
+  transform-style: preserve-3d;
+  transform:
+    perspective(1200px)
+    rotateX(var(--rx))
+    rotateY(var(--ry))
+    translateZ(0);
+  animation: productRiseIn 520ms ease both;
+  animation-delay: var(--stagger);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 22px 55px rgba(15, 23, 42, 0.10),
+    0 8px 22px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.ai-product-card-3d::before {
+  content: "";
+  position: absolute;
+  inset: -18px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.46), transparent 24%),
+    inherit;
+  filter: blur(24px);
+  opacity: 0;
+  transform: translateZ(-38px);
+  transition: opacity 180ms ease;
+  z-index: -1;
+}
+
+.ai-product-card-3d::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background: radial-gradient(circle at var(--mx) var(--my), rgba(255, 255, 255, 0.40), transparent 26%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.ai-product-card-3d:hover {
+  transform:
+    perspective(1200px)
+    rotateX(var(--rx))
+    rotateY(var(--ry))
+    translate3d(0, -8px, 68px);
+  box-shadow:
+    0 40px 95px rgba(15, 23, 42, 0.18),
+    0 18px 45px rgba(15, 23, 42, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.ai-product-card-3d:hover::before,
+.ai-product-card-3d:hover::after {
+  opacity: 1;
+}
+
+.ai-product-card-3d .product-visual {
+  transform: translateZ(44px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.ai-product-card-3d .product-info {
+  transform: translateZ(34px);
+}
+
+.ai-product-card-3d.featured {
+  border: 1px solid rgba(56, 189, 248, 0.55);
+  box-shadow:
+    0 34px 95px rgba(14, 165, 233, 0.18),
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.product-badge-3d {
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  z-index: 4;
+  background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+  color: #ffffff;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  transform: translateZ(84px);
+  box-shadow:
+    0 12px 26px rgba(56, 189, 248, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+@keyframes productRiseIn {
+  from {
+    opacity: 0;
+    transform:
+      perspective(1200px)
+      rotateX(12deg)
+      translate3d(0, 24px, -60px);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      perspective(1200px)
+      rotateX(var(--rx))
+      rotateY(var(--ry))
+      translateZ(0);
+  }
+}
+
+/* Product page depth */
+
+.product-hero-panel {
+  box-shadow:
+    0 44px 115px rgba(15, 23, 42, 0.22),
+    0 18px 45px rgba(15, 23, 42, 0.14);
+  transform: translateZ(40px);
+}
+
+.plan-option,
+.account-type-card,
+.purchase-summary {
+  transform-style: preserve-3d;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.plan-option:hover,
+.account-type-card:hover {
+  transform: translate3d(0, -3px, 26px);
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.10),
+    0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+/* Reduced motion and mobile */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .chat-panel-3d,
+  .hero-card,
+  .hero-content,
+  .ai-product-card-3d,
+  .app-shell-3d .sidebar,
+  .message-bubble {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell-3d,
+  .landing-page,
+  .products-section {
+    perspective: none;
+  }
+
+  .chat-panel-3d,
+  .hero-card,
+  .hero-content,
+  .ai-product-card-3d,
+  .app-shell-3d .sidebar,
+  .chat-panel-3d .composer,
+  .message-bubble {
+    transform: none !important;
+  }
+
+  .depth-orb {
+    opacity: 0.26;
+  }
+
+  .products-grid {
+    gap: 18px;
+  }
+}
+/* 3D UX Fix: crisp text + stable product cards */
+
+/* جلوگیری از هاله و تاری متن */
+body,
+button,
+input,
+textarea,
+select,
+.message-content,
+.message-role,
+.product-info,
+.product-info h3,
+.product-info p,
+.chat-header,
+.chat-header h1,
+.chat-header p,
+.sidebar,
+.landing-page,
+.product-page {
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* حذف transform از بخش‌های متن‌دار برای جلوگیری از تاری */
+.chat-panel-3d {
+  transform: translateZ(0) !important;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.chat-panel-3d .chat-header,
+.chat-panel-3d .chat-body,
+.chat-panel-3d .composer,
+.message-bubble,
+.ai-product-card-3d .product-info,
+.ai-product-card-3d .product-info h3,
+.ai-product-card-3d .product-info p {
+  transform: none !important;
+}
+
+/* پیام‌ها هنوز انیمیشن داشته باشند ولی بدون translateZ */
+.message-bubble {
+  animation: messageCleanIn 220ms ease both !important;
+  box-shadow:
+    0 14px 34px rgba(15, 23, 42, 0.08),
+    0 4px 10px rgba(15, 23, 42, 0.04) !important;
+}
+
+@keyframes messageCleanIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* حذف لایه glare که روی متن هاله می‌انداخت */
+.ai-product-card-3d::after {
+  display: none !important;
+}
+
+/* کارت محصولات: بدون tilt زنده، فقط hover نرم و پایدار */
+.ai-product-card-3d {
+  transform:
+    perspective(1200px)
+    translateY(0)
+    scale(1) !important;
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
+  transform-origin: center center;
+  transition:
+    transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 220ms ease,
+    border-color 220ms ease !important;
+}
+
+.ai-product-card-3d:hover {
+  transform:
+    perspective(1200px)
+    translateY(-8px)
+    scale(1.025) !important;
+  box-shadow:
+    0 34px 75px rgba(15, 23, 42, 0.16),
+    0 12px 28px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88) !important;
+}
+
+/* glow پشت کارت بماند ولی روی متن اثر نگذارد */
+.ai-product-card-3d::before {
+  opacity: 0;
+  transform: none !important;
+  pointer-events: none;
+  filter: blur(20px);
+}
+
+.ai-product-card-3d:hover::before {
+  opacity: 0.45 !important;
+}
+
+/* لوگوی داخل کارت کمی عمق داشته باشد، اما متن نه */
+.ai-product-card-3d .product-visual {
+  transform: none !important;
+  transition: transform 220ms ease;
+}
+
+.ai-product-card-3d:hover .product-visual {
+  transform: translateY(-2px) scale(1.01) !important;
+}
+
+/* دکمه‌ها برجسته بمانند ولی متنشان تار نشود */
+.send-btn,
+.new-chat-btn,
+.wallet-buy-link,
+.primary-action,
+.buy-button,
+.wallet-submit-btn,
+.admin-save-btn {
+  transform: translateY(0) !important;
+}
+
+.send-btn:hover,
+.new-chat-btn:hover,
+.wallet-buy-link:hover,
+.primary-action:hover,
+.buy-button:hover,
+.wallet-submit-btn:hover,
+.admin-save-btn:hover {
+  transform: translateY(-2px) !important;
+}
+
+.send-btn:active,
+.new-chat-btn:active,
+.wallet-buy-link:active,
+.primary-action:active,
+.buy-button:active,
+.wallet-submit-btn:active,
+.admin-save-btn:active {
+  transform: translateY(1px) !important;
+}
+
+/* glassmorphism را سبک‌تر کن تا متن واضح‌تر شود */
+.chat-panel-3d,
+.app-shell-3d .sidebar,
+.wallet-mini-card,
+.model-picker,
+.wallet-product-card {
+  backdrop-filter: blur(10px) !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* Hero هنوز 3D بماند ولی متن واضح‌تر باشد */
+.hero-content {
+  transform: none !important;
+}
+
+.hero-card {
+  transform: translateY(0) !important;
+  animation: heroFloatSoft 5s ease-in-out infinite alternate !important;
+}
+
+@keyframes heroFloatSoft {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-10px);
+  }
+}
+
+/* موبایل: همه حرکت‌ها ساده‌تر */
+@media (max-width: 900px) {
+  .ai-product-card-3d:hover {
+    transform: translateY(-4px) scale(1.01) !important;
+  }
+
+  .hero-card {
+    animation: none !important;
+  }
+}
+/* Sidebar text blur fix */
+
+.app-shell-3d .sidebar {
+  transform: none !important;
+  backdrop-filter: none !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.08),
+    0 8px 22px rgba(15, 23, 42, 0.05) !important;
+  border-left: 1px solid #e5e7eb !important;
+}
+
+.app-shell-3d .sidebar,
+.app-shell-3d .sidebar * {
+  text-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+  backface-visibility: visible !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+/* کارت کیف پول داخل سایدبار هم شفاف و بدون blur */
+.sidebar .wallet-mini-card {
+  backdrop-filter: none !important;
+  background: #f8fafc !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+/* دکمه‌ها و لینک‌های سایدبار بدون transform سه‌بعدی */
+.sidebar .new-chat-btn,
+.sidebar .logout-btn,
+.sidebar .sidebar-home-link,
+.sidebar .wallet-buy-link,
+.sidebar .conversation-item {
+  transform: none !important;
+}
+
+.sidebar .new-chat-btn:hover,
+.sidebar .logout-btn:hover,
+.sidebar .sidebar-home-link:hover,
+.sidebar .wallet-buy-link:hover,
+.sidebar .conversation-item:hover {
+  transform: translateY(-1px) !important;
+}
