@@ -525,9 +525,9 @@ export default function Home() {
   <span>موجودی کیف پول</span>
   <b>{formatToman(walletBalance ?? 0)}</b>
 
-  <Link href="/" className="wallet-buy-link">
-    خرید اکانت AI
-  </Link>
+    <Link href="/wallet" className="wallet-buy-link">
+      شارژ کیف پول
+    </Link>
 </div>
 
 <button className="new-chat-btn" onClick={handleNewChat}>
@@ -537,7 +537,9 @@ export default function Home() {
         <button className="logout-btn" onClick={handleLogout}>
           خروج
         </button>
-
+        <Link href="/wallet" className="sidebar-home-link">
+          کیف پول
+        </Link>
         <Link href="/orders" className="sidebar-home-link">
         سفارش‌های من
         </Link>

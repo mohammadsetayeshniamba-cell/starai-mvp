@@ -226,6 +226,7 @@ export default function AdminPage() {
         <div className="admin-header-actions">
           <Link href="/">صفحه اصلی</Link>
           <Link href="/orders">سفارش‌های من</Link>
+          <Link href="/admin/topups">درخواست‌های شارژ</Link>
           <Link href="/chat">پنل چت</Link>
           <button onClick={handleLogout}>خروج</button>
         </div>
